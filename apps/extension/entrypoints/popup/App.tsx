@@ -1,30 +1,36 @@
-import { useEffect, useState } from 'react';
-import { Logo } from '@openscroll/ui/components/brand/Logo';
-import { Input } from '@openscroll/ui/components/ui/input';
+import { Logo } from "@openscroll/ui/components/brand/logo";
+import { NumberInput } from "@openscroll/ui/components/ui/number-input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@openscroll/ui/components/ui/select';
-import { Separator } from '@openscroll/ui/components/ui/separator';
-import { FilterRow } from '@/components/ui/filter-row';
+} from "@openscroll/ui/components/ui/select";
+import { Separator } from "@openscroll/ui/components/ui/separator";
+import { useEffect, useState } from "react";
+import { FilterRow } from "@/components/ui/filter-row";
 import {
-  filterSettings,
+  type FilterType,
+  filterConfigs,
+  isRecencyFilter,
+} from "@/lib/filters/config";
+import {
+  type CooldownSettings,
   cooldownSettings,
-  defaultSettings,
   defaultCooldownSettings,
+  defaultSettings,
   type FilterSettings,
   type FilterState,
+  filterSettings,
   type TimeUnit,
-  type CooldownSettings,
-} from '@/lib/storage';
-import { filterConfigs, isRecencyFilter, type FilterType } from '@/lib/filters/config';
+} from "@/lib/storage";
 
 function App() {
   const [settings, setSettings] = useState<FilterSettings>(defaultSettings);
-  const [cooldown, setCooldown] = useState<CooldownSettings>(defaultCooldownSettings);
+  const [cooldown, setCooldown] = useState<CooldownSettings>(
+    defaultCooldownSettings
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +43,10 @@ function App() {
     );
   }, []);
 
-  const updateFilter = async (key: FilterType, updates: Partial<FilterState>) => {
+  const updateFilter = async (
+    key: FilterType,
+    updates: Partial<FilterState>
+  ) => {
     const newSettings = {
       ...settings,
       [key]: { ...settings[key], ...updates },
@@ -54,16 +63,16 @@ function App() {
 
   if (loading) {
     return (
-      <div className="w-72 min-h-[100px] p-3 font-sans">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="min-h-[100px] w-72 p-3 font-sans">
+        <p className="text-muted-foreground text-sm">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-72 min-h-[100px] p-3 space-y-4 font-sans">
+    <div className="min-h-[100px] w-72 space-y-4 p-3 font-sans">
       <div className="flex items-center gap-2">
-        <Logo size={20} className="text-foreground" />
+        <Logo className="text-foreground" size={20} />
         <h1 className="text-base text-foreground">OpenScroll</h1>
       </div>
 
@@ -73,27 +82,28 @@ function App() {
 
           return (
             <FilterRow
+              enabled={state.enabled}
               key={config.key}
               label={config.label}
-              enabled={state.enabled}
               onToggle={(enabled) => updateFilter(config.key, { enabled })}
             >
               {isRecencyFilter(config) ? (
                 <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={state.value}
-                    onChange={(e) =>
-                      updateFilter(config.key, { value: parseInt(e.target.value) || 1 })
-                    }
+                  <NumberInput
                     className="w-20"
+                    minValue={1}
+                    onChange={(value) =>
+                      updateFilter(config.key, { value: value || 1 })
+                    }
+                    value={state.value}
                   />
                   <Select
-                    value={state.unit}
                     onValueChange={(unit) => {
-                      if (unit) updateFilter(config.key, { unit: unit as TimeUnit });
+                      if (unit) {
+                        updateFilter(config.key, { unit: unit as TimeUnit });
+                      }
                     }}
+                    value={state.unit}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue />
@@ -106,14 +116,13 @@ function App() {
                   </Select>
                 </div>
               ) : (
-                <Input
-                  type="number"
-                  min={0}
-                  value={state.value}
-                  onChange={(e) =>
-                    updateFilter(config.key, { value: parseInt(e.target.value) || 0 })
-                  }
+                <NumberInput
                   className="w-full"
+                  minValue={0}
+                  onChange={(value) =>
+                    updateFilter(config.key, { value: value || 0 })
+                  }
+                  value={state.value}
                 />
               )}
             </FilterRow>
@@ -121,40 +130,32 @@ function App() {
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         Filtered tweets are hidden from your timeline.
       </p>
 
       <Separator className="my-4" />
 
       <FilterRow
-        label="Rate limit protection"
         enabled={cooldown.enabled}
+        label="Rate limit protection"
         onToggle={(enabled) => updateCooldown({ enabled })}
       >
         <div className="flex gap-2">
-          <Input
-            type="number"
-            min={1}
+          <NumberInput
+            className="w-20"
+            minValue={1}
+            onChange={(value) => updateCooldown({ threshold: value || 1 })}
             value={cooldown.threshold}
-            onChange={(e) =>
-              updateCooldown({ threshold: parseInt(e.target.value) || 1 })
-            }
-            className="w-20"
-            placeholder="100"
           />
-          <Input
-            type="number"
-            min={1}
-            value={cooldown.duration}
-            onChange={(e) =>
-              updateCooldown({ duration: parseInt(e.target.value) || 1 })
-            }
+          <NumberInput
             className="w-20"
-            placeholder="30"
+            minValue={1}
+            onChange={(value) => updateCooldown({ duration: value || 1 })}
+            value={cooldown.duration}
           />
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="mt-1 text-muted-foreground text-xs">
           hidden tweets / seconds
         </p>
       </FilterRow>

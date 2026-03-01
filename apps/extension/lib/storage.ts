@@ -1,37 +1,40 @@
-import { storage } from '@wxt-dev/storage';
-import { filterConfigs, isRecencyFilter, type FilterType } from './filters/config';
+import { storage } from "@wxt-dev/storage";
+import {
+  type FilterType,
+  filterConfigs,
+  isRecencyFilter,
+} from "./filters/config";
 
-export type TimeUnit = 'hours' | 'days' | 'weeks';
+export type TimeUnit = "hours" | "days" | "weeks";
 
 export interface FilterState {
   enabled: boolean;
-  value: number;
   unit?: TimeUnit;
+  value: number;
 }
 
 export type FilterSettings = Record<FilterType, FilterState>;
 
 export interface CooldownSettings {
+  duration: number; // Cooldown duration in seconds
   enabled: boolean;
   threshold: number; // Hidden tweets before cooldown triggers
-  duration: number; // Cooldown duration in seconds
 }
 
 // Generate defaults from config
-export const defaultSettings: FilterSettings = filterConfigs.reduce(
-  (acc, config) => ({
-    ...acc,
-    [config.key]: {
+export const defaultSettings: FilterSettings = Object.fromEntries(
+  filterConfigs.map((config) => [
+    config.key,
+    {
       enabled: config.defaultEnabled,
       value: config.defaultValue,
       unit: isRecencyFilter(config) ? config.unit : undefined,
     },
-  }),
-  {} as FilterSettings
-);
+  ])
+) as FilterSettings;
 
 const filterSettingsRaw = storage.defineItem<Partial<FilterSettings>>(
-  'local:filterSettings',
+  "local:filterSettings",
   {
     fallback: defaultSettings,
   }
@@ -61,7 +64,7 @@ export const defaultCooldownSettings: CooldownSettings = {
 };
 
 const cooldownSettingsRaw = storage.defineItem<Partial<CooldownSettings>>(
-  'local:cooldownSettings',
+  "local:cooldownSettings",
   {
     fallback: defaultCooldownSettings,
   }

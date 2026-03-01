@@ -3,10 +3,10 @@ export default defineBackground(() => {
   const action = browser.action ?? browser.browserAction;
 
   browser.runtime.onMessage.addListener((message) => {
-    if (message.type === 'UPDATE_BADGE') {
+    if (message.type === "UPDATE_BADGE") {
       const count = message.count as number;
-      action.setBadgeText({ text: count > 0 ? String(count) : '' });
-      action.setBadgeBackgroundColor({ color: '#1d9bf0' }); // X blue
+      action.setBadgeText({ text: count > 0 ? String(count) : "" });
+      action.setBadgeBackgroundColor({ color: "#1d9bf0" }); // X blue
     }
   });
 });

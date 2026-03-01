@@ -1,19 +1,19 @@
 import {
-  filterSettings,
+  type CooldownSettings,
   cooldownSettings,
   type FilterSettings,
-  type CooldownSettings,
-} from '@/lib/storage';
+  filterSettings,
+} from "@/lib/storage";
 import {
+  createTweetObserver,
   filterTweets,
   resetCooldown,
-  createTweetObserver,
   startObserving,
   stopObserving,
-} from '@/lib/tweet-filter';
+} from "@/lib/tweet-filter";
 
 export default defineContentScript({
-  matches: ['*://x.com/*', '*://twitter.com/*'],
+  matches: ["*://x.com/*", "*://twitter.com/*"],
   main() {
     let currentSettings: FilterSettings | null = null;
     let currentCooldown: CooldownSettings | null = null;
@@ -21,21 +21,25 @@ export default defineContentScript({
 
     function updateBadge(count: number, inCooldown = false) {
       browser.runtime.sendMessage({
-        type: 'UPDATE_BADGE',
+        type: "UPDATE_BADGE",
         count,
         inCooldown,
       });
     }
 
     function applyFilter() {
-      if (!currentSettings) return;
+      if (!currentSettings) {
+        return;
+      }
 
       const result = filterTweets(
         currentSettings,
         currentCooldown ?? undefined,
         () => {
           // Cooldown ended - resume observing and re-filter
-          if (observer) startObserving(observer);
+          if (observer) {
+            startObserving(observer);
+          }
           applyFilter();
         }
       );
@@ -72,7 +76,7 @@ export default defineContentScript({
 
       // Handle SPA navigation
       browser.runtime.onMessage.addListener((message) => {
-        if (message.type === 'LOCATION_CHANGE') {
+        if (message.type === "LOCATION_CHANGE") {
           resetCooldown();
           updateBadge(0);
           setTimeout(applyFilter, 500);
@@ -83,7 +87,7 @@ export default defineContentScript({
     init();
 
     // Listen for WXT location change events (SPA navigation)
-    window.addEventListener('wxt:locationchange', () => {
+    window.addEventListener("wxt:locationchange", () => {
       resetCooldown();
       updateBadge(0);
       setTimeout(applyFilter, 500);
