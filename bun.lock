@@ -13,7 +13,7 @@
     },
     "apps/extension": {
       "name": "@openscroll/extension",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@openscroll/ui": "*",
         "@wxt-dev/storage": "^1.1.1",
@@ -34,6 +34,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@openscroll/ui": "workspace:*",
         "next": "16.1.6",
         "react": "19.2.3",
         "react-dom": "19.2.3",

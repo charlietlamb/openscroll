@@ -9,8 +9,9 @@ export default defineConfig({
   }),
   manifest: {
     name: "OpenScroll",
-    description: "Filter tweets by age on X/Twitter",
-    permissions: ["storage"],
+    description:
+      "Filter your X timeline by tweet age and engagement. Hide old posts and low-engagement content to focus on what matters.",
+    permissions: ["storage", "tabs"],
   },
   runner: {
     chromiumProfile: "./.wxt/chrome-data",

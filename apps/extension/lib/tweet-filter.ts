@@ -4,6 +4,7 @@ import {
   isRecencyFilter,
 } from "./filters/config";
 import type { CooldownSettings, FilterSettings, TimeUnit } from "./storage";
+import { statsStorage } from "./storage";
 import {
   getTweetCells,
   hideTweet,
@@ -16,6 +17,41 @@ import { parseCompactNumber } from "./utils/parse";
 let consecutiveHides = 0;
 let cooldownUntil = 0;
 let cooldownCallback: (() => void) | null = null;
+
+// Cumulative stats (tracks all tweets seen, not just current DOM)
+let totalShown = 0;
+let totalHidden = 0;
+const seenTweets = new Set<string>();
+let statsLoaded = false;
+
+async function loadStats(): Promise<void> {
+  if (statsLoaded) {
+    return;
+  }
+  const data = await statsStorage.getValue();
+  totalShown = data.shownCount;
+  totalHidden = data.hiddenCount;
+  for (const id of data.seenTweetIds) {
+    seenTweets.add(id);
+  }
+  statsLoaded = true;
+}
+
+async function saveStats(): Promise<void> {
+  await statsStorage.setValue({
+    shownCount: totalShown,
+    hiddenCount: totalHidden,
+    seenTweetIds: Array.from(seenTweets),
+    lastUpdated: Date.now(),
+  });
+}
+
+export async function resetStats(): Promise<void> {
+  totalShown = 0;
+  totalHidden = 0;
+  seenTweets.clear();
+  await saveStats();
+}
 
 export function isInCooldown(): boolean {
   return Date.now() < cooldownUntil;
@@ -68,6 +104,21 @@ function getTweetTimestamp(cell: Element): Date | null {
     return null;
   }
   return new Date(datetime);
+}
+
+const TWEET_STATUS_REGEX = /\/status\/(\d+)/;
+
+function getTweetId(cell: Element): string | null {
+  // Try to get tweet ID from the status link
+  const link = cell.querySelector('a[href*="/status/"]');
+  if (link) {
+    const href = link.getAttribute("href");
+    const match = href ? TWEET_STATUS_REGEX.exec(href) : null;
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
 }
 
 function getTweetViews(cell: Element): number | null {
@@ -130,32 +181,30 @@ export interface FilterResult {
   cooldownRemaining: number;
   hiddenCount: number;
   inCooldown: boolean;
+  shownCount: number;
 }
 
-export function filterTweets(
+export async function filterTweets(
   settings: FilterSettings,
   cooldown?: CooldownSettings,
   onCooldownEnd?: () => void
-): FilterResult {
-  // If in cooldown, skip filtering but return current state
+): Promise<FilterResult> {
+  // Ensure stats are loaded from storage
+  await loadStats();
+
+  // If in cooldown, skip filtering but return current cumulative stats
   if (isInCooldown()) {
-    const cells = getTweetCells();
-    let hiddenCount = 0;
-    for (const cell of cells) {
-      if (isTweetHidden(cell)) {
-        hiddenCount++;
-      }
-    }
     return {
-      hiddenCount,
+      hiddenCount: totalHidden,
+      shownCount: totalShown,
       inCooldown: true,
       cooldownRemaining: getCooldownRemaining(),
     };
   }
 
   const cells = getTweetCells();
-  let hiddenCount = 0;
   let newHidesThisPass = 0;
+  let statsChanged = false;
 
   for (const cell of cells) {
     if (!isTweet(cell)) {
@@ -165,6 +214,9 @@ export function filterTweets(
       continue;
     }
 
+    const tweetId = getTweetId(cell);
+    const isNewTweet = tweetId && !seenTweets.has(tweetId);
+
     const shouldHide = shouldHideTweet(cell, settings);
 
     if (shouldHide) {
@@ -172,14 +224,30 @@ export function filterTweets(
         hideTweet(cell);
         newHidesThisPass++;
       }
-      hiddenCount++;
+      // Only count new tweets toward cumulative total
+      if (isNewTweet && tweetId) {
+        seenTweets.add(tweetId);
+        totalHidden++;
+        statsChanged = true;
+      }
     } else {
       if (isTweetHidden(cell)) {
         showTweet(cell);
       }
+      // Only count new tweets toward cumulative total
+      if (isNewTweet && tweetId) {
+        seenTweets.add(tweetId);
+        totalShown++;
+        statsChanged = true;
+      }
       // Reset consecutive count when we show a tweet (user is seeing content)
       consecutiveHides = 0;
     }
+  }
+
+  // Save stats if changed
+  if (statsChanged) {
+    await saveStats();
   }
 
   // Track consecutive hides for cooldown
@@ -189,14 +257,16 @@ export function filterTweets(
   if (cooldown?.enabled && consecutiveHides >= cooldown.threshold) {
     triggerCooldown(cooldown.duration, onCooldownEnd);
     return {
-      hiddenCount,
+      hiddenCount: totalHidden,
+      shownCount: totalShown,
       inCooldown: true,
       cooldownRemaining: cooldown.duration,
     };
   }
 
   return {
-    hiddenCount,
+    hiddenCount: totalHidden,
+    shownCount: totalShown,
     inCooldown: false,
     cooldownRemaining: 0,
   };

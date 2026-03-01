@@ -24,7 +24,7 @@ export type FilterConfig = RecencyFilterConfig | MetricFilterConfig;
 export const filterConfigs: FilterConfig[] = [
   {
     key: "recency",
-    label: "Recency",
+    label: "Maximum age",
     defaultEnabled: true,
     defaultValue: 24,
     unit: "hours",

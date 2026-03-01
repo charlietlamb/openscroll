@@ -6,8 +6,10 @@ import {
 } from "@/lib/storage";
 import {
   createTweetObserver,
+  type FilterResult,
   filterTweets,
   resetCooldown,
+  resetStats,
   startObserving,
   stopObserving,
 } from "@/lib/tweet-filter";
@@ -18,21 +20,27 @@ export default defineContentScript({
     let currentSettings: FilterSettings | null = null;
     let currentCooldown: CooldownSettings | null = null;
     let observer: MutationObserver | null = null;
+    let lastResult: FilterResult = {
+      hiddenCount: 0,
+      shownCount: 0,
+      inCooldown: false,
+      cooldownRemaining: 0,
+    };
 
-    function updateBadge(count: number, inCooldown = false) {
+    function sendStats(result: FilterResult) {
+      lastResult = result;
       browser.runtime.sendMessage({
-        type: "UPDATE_BADGE",
-        count,
-        inCooldown,
+        type: "UPDATE_STATS",
+        ...result,
       });
     }
 
-    function applyFilter() {
+    async function applyFilter() {
       if (!currentSettings) {
         return;
       }
 
-      const result = filterTweets(
+      const result = await filterTweets(
         currentSettings,
         currentCooldown ?? undefined,
         () => {
@@ -44,7 +52,7 @@ export default defineContentScript({
         }
       );
 
-      updateBadge(result.hiddenCount, result.inCooldown);
+      sendStats(result);
 
       // Pause observer during cooldown to prevent scroll loading
       if (result.inCooldown && observer) {
@@ -74,14 +82,20 @@ export default defineContentScript({
         currentCooldown = newCooldown;
       });
 
-      // Handle SPA navigation
-      browser.runtime.onMessage.addListener((message) => {
-        if (message.type === "LOCATION_CHANGE") {
-          resetCooldown();
-          updateBadge(0);
-          setTimeout(applyFilter, 500);
+      // Handle messages from popup and background
+      browser.runtime.onMessage.addListener(
+        (message, _sender, sendResponse) => {
+          if (message.type === "LOCATION_CHANGE") {
+            resetCooldown();
+            resetStats().then(() => {
+              setTimeout(applyFilter, 500);
+            });
+          } else if (message.type === "GET_STATS") {
+            sendResponse(lastResult);
+          }
+          return true;
         }
-      });
+      );
     }
 
     init();
@@ -89,8 +103,9 @@ export default defineContentScript({
     // Listen for WXT location change events (SPA navigation)
     window.addEventListener("wxt:locationchange", () => {
       resetCooldown();
-      updateBadge(0);
-      setTimeout(applyFilter, 500);
+      resetStats().then(() => {
+        setTimeout(applyFilter, 500);
+      });
     });
   },
 });

@@ -7,6 +7,25 @@ import {
 
 export type TimeUnit = "hours" | "days" | "weeks";
 
+// Stats storage
+export interface StatsData {
+  hiddenCount: number;
+  lastUpdated: number;
+  seenTweetIds: string[];
+  shownCount: number;
+}
+
+const defaultStats: StatsData = {
+  hiddenCount: 0,
+  shownCount: 0,
+  seenTweetIds: [],
+  lastUpdated: Date.now(),
+};
+
+export const statsStorage = storage.defineItem<StatsData>("session:stats", {
+  fallback: defaultStats,
+});
+
 export interface FilterState {
   enabled: boolean;
   unit?: TimeUnit;

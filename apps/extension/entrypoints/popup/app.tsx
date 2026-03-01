@@ -26,12 +26,31 @@ import {
   type TimeUnit,
 } from "@/lib/storage";
 
+interface Stats {
+  hiddenCount: number;
+  shownCount: number;
+}
+
+function isXDomain(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname === "x.com" || hostname === "twitter.com";
+  } catch {
+    return false;
+  }
+}
+
 function App() {
   const [settings, setSettings] = useState<FilterSettings>(defaultSettings);
   const [cooldown, setCooldown] = useState<CooldownSettings>(
     defaultCooldownSettings
   );
+  const [stats, setStats] = useState<Stats>({ hiddenCount: 0, shownCount: 0 });
   const [loading, setLoading] = useState(true);
+  const [isOnX, setIsOnX] = useState(false);
 
   useEffect(() => {
     Promise.all([filterSettings.getValue(), cooldownSettings.getValue()]).then(
@@ -41,6 +60,38 @@ function App() {
         setLoading(false);
       }
     );
+
+    // Check if current tab is on x.com
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      const tab = tabs[0];
+      const onX = isXDomain(tab?.url);
+      setIsOnX(onX);
+
+      if (onX && tab?.id) {
+        browser.tabs
+          .sendMessage(tab.id, { type: "GET_STATS" })
+          .then((response: Stats | undefined) => {
+            if (response) {
+              setStats(response);
+            }
+          })
+          .catch(() => {
+            // Content script not loaded on this page
+          });
+      }
+    });
+
+    // Listen for stats updates from content script
+    const listener = (message: { type: string } & Stats) => {
+      if (message.type === "UPDATE_STATS") {
+        setStats({
+          hiddenCount: message.hiddenCount,
+          shownCount: message.shownCount,
+        });
+      }
+    };
+    browser.runtime.onMessage.addListener(listener);
+    return () => browser.runtime.onMessage.removeListener(listener);
   }, []);
 
   const updateFilter = async (
@@ -69,11 +120,34 @@ function App() {
     );
   }
 
+  if (!isOnX) {
+    return (
+      <div className="min-h-[100px] w-72 space-y-4 p-3 font-sans">
+        <div className="flex items-center gap-2">
+          <Logo className="text-foreground" size={20} />
+          <h1 className="text-base text-foreground">OpenScroll</h1>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Navigate to x.com to use OpenScroll.
+        </p>
+      </div>
+    );
+  }
+
+  const totalTweets = stats.shownCount + stats.hiddenCount;
+
   return (
     <div className="min-h-[100px] w-72 space-y-4 p-3 font-sans">
-      <div className="flex items-center gap-2">
-        <Logo className="text-foreground" size={20} />
-        <h1 className="text-base text-foreground">OpenScroll</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Logo className="text-foreground" size={20} />
+          <h1 className="text-base text-foreground">OpenScroll</h1>
+        </div>
+        {totalTweets > 0 && (
+          <p className="text-muted-foreground text-xs">
+            {stats.shownCount} shown / {stats.hiddenCount} hidden
+          </p>
+        )}
       </div>
 
       <div className="space-y-4">
