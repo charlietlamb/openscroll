@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { Logo } from '@openscroll/ui/components/brand/Logo';
+import { Input } from '@openscroll/ui/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@openscroll/ui/components/ui/select';
+import { Separator } from '@openscroll/ui/components/ui/separator';
 import { FilterRow } from '@/components/ui/filter-row';
-import { Separator } from '@/components/ui/separator';
 import {
   filterSettings,
   cooldownSettings,
@@ -61,7 +62,10 @@ function App() {
 
   return (
     <div className="w-72 min-h-[100px] p-3 space-y-4 font-sans">
-      <h1 className="text-base text-foreground">OpenScroll</h1>
+      <div className="flex items-center gap-2">
+        <Logo size={20} className="text-foreground" />
+        <h1 className="text-base text-foreground">OpenScroll</h1>
+      </div>
 
       <div className="space-y-4">
         {filterConfigs.map((config) => {
@@ -87,9 +91,9 @@ function App() {
                   />
                   <Select
                     value={state.unit}
-                    onValueChange={(unit: TimeUnit) =>
-                      updateFilter(config.key, { unit })
-                    }
+                    onValueChange={(unit) => {
+                      if (unit) updateFilter(config.key, { unit: unit as TimeUnit });
+                    }}
                   >
                     <SelectTrigger className="flex-1">
                       <SelectValue />

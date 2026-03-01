@@ -1,5 +1,5 @@
-import { Switch } from './switch';
-import { cn } from '@/lib/utils';
+import { Switch } from '@openscroll/ui/components/ui/switch';
+import { cn } from '@openscroll/ui/lib/utils';
 
 interface FilterRowProps {
   label: string;
