@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@openscroll/ui/*": ["../../packages/ui/src/*"]
     }
   },
   "include": [
