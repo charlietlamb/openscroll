@@ -1,38 +1,17 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "openscroll",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "wxt",
-    "dev:firefox": "wxt -b firefox",
-    "build": "wxt build",
-    "build:firefox": "wxt build -b firefox",
-    "build:watch": "wxt build --watch",
-    "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox",
-    "compile": "tsc --noEmit",
-    "postinstall": "wxt prepare"
-  },
-  "dependencies": {
-    "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-switch": "^1.2.6",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.575.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "tailwind-merge": "^3.5.0"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "dev:extension": "turbo dev --filter=@openscroll/extension"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.1",
-    "@types/react": "^19.2.13",
-    "@types/react-dom": "^19.2.3",
-    "@wxt-dev/module-react": "^1.1.5",
-    "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3",
-    "wxt": "^0.20.18"
-  }
+    "turbo": "^2.5.4"
+  },
+  "packageManager": "bun@1.2.5"
 }

@@ -1,29 +1,59 @@
-import { filterSettings, type FilterSettings } from '@/lib/storage';
+import {
+  filterSettings,
+  cooldownSettings,
+  type FilterSettings,
+  type CooldownSettings,
+} from '@/lib/storage';
 import {
   filterTweets,
+  resetCooldown,
   createTweetObserver,
   startObserving,
+  stopObserving,
 } from '@/lib/tweet-filter';
 
 export default defineContentScript({
   matches: ['*://x.com/*', '*://twitter.com/*'],
   main() {
     let currentSettings: FilterSettings | null = null;
+    let currentCooldown: CooldownSettings | null = null;
     let observer: MutationObserver | null = null;
 
-    function updateBadge(count: number) {
-      browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count });
+    function updateBadge(count: number, inCooldown = false) {
+      browser.runtime.sendMessage({
+        type: 'UPDATE_BADGE',
+        count,
+        inCooldown,
+      });
     }
 
     function applyFilter() {
       if (!currentSettings) return;
-      const hiddenCount = filterTweets(currentSettings);
-      updateBadge(hiddenCount);
+
+      const result = filterTweets(
+        currentSettings,
+        currentCooldown ?? undefined,
+        () => {
+          // Cooldown ended - resume observing and re-filter
+          if (observer) startObserving(observer);
+          applyFilter();
+        }
+      );
+
+      updateBadge(result.hiddenCount, result.inCooldown);
+
+      // Pause observer during cooldown to prevent scroll loading
+      if (result.inCooldown && observer) {
+        stopObserving(observer);
+      }
     }
 
     async function init() {
       // Load initial settings
-      currentSettings = await filterSettings.getValue();
+      [currentSettings, currentCooldown] = await Promise.all([
+        filterSettings.getValue(),
+        cooldownSettings.getValue(),
+      ]);
       applyFilter();
 
       // Create observer for new tweets (infinite scroll)
@@ -36,12 +66,15 @@ export default defineContentScript({
         applyFilter();
       });
 
+      cooldownSettings.watch((newCooldown) => {
+        currentCooldown = newCooldown;
+      });
+
       // Handle SPA navigation
       browser.runtime.onMessage.addListener((message) => {
         if (message.type === 'LOCATION_CHANGE') {
-          // Reset badge on navigation
+          resetCooldown();
           updateBadge(0);
-          // Re-filter after a short delay to allow new content to load
           setTimeout(applyFilter, 500);
         }
       });
@@ -51,6 +84,7 @@ export default defineContentScript({
 
     // Listen for WXT location change events (SPA navigation)
     window.addEventListener('wxt:locationchange', () => {
+      resetCooldown();
       updateBadge(0);
       setTimeout(applyFilter, 500);
     });

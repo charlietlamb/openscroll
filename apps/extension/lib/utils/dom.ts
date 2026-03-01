@@ -41,3 +41,7 @@ export function startObserving(observer: MutationObserver): void {
     subtree: true,
   });
 }
+
+export function stopObserving(observer: MutationObserver): void {
+  observer.disconnect();
+}
