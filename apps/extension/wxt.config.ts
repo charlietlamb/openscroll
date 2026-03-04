@@ -11,7 +11,8 @@ export default defineConfig({
     name: "OpenScroll",
     description:
       "Filter your X timeline by tweet age and engagement. Hide old posts and low-engagement content to focus on what matters.",
-    permissions: ["storage", "tabs"],
+    permissions: ["storage", "tabs", "activeTab", "scripting"],
+    optional_host_permissions: ["*://x.com/*", "*://twitter.com/*"],
   },
   runner: {
     chromiumProfile: "./.wxt/chrome-data",

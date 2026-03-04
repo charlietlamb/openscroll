@@ -16,7 +16,14 @@ import {
 
 export default defineContentScript({
   matches: ["*://x.com/*", "*://twitter.com/*"],
+  runAt: "document_end",
   main() {
+    // Prevent double-initialization if injected both declaratively and programmatically
+    if ((window as unknown as Record<string, boolean>).__openscroll_loaded) {
+      return;
+    }
+    (window as unknown as Record<string, boolean>).__openscroll_loaded = true;
+
     let currentSettings: FilterSettings | null = null;
     let currentCooldown: CooldownSettings | null = null;
     let observer: MutationObserver | null = null;

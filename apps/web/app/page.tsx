@@ -1,115 +1,118 @@
 import { Logo } from "@openscroll/ui/components/brand/logo";
+import { cn } from "@openscroll/ui/lib/utils";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-white font-sans dark:bg-zinc-950">
-      <main className="flex min-h-screen flex-1">
-        {/* Left gutter with ticks */}
-        <BorderLine position="left" />
+    <div className="flex min-h-screen flex-col bg-background font-sans">
+      <main className="relative flex min-h-screen flex-1 overflow-hidden [--tick-color:color-mix(in_oklab,theme(colors.border)_40%,transparent)]">
+        {/* Left tick lines - scroll down */}
+        <div
+          className="pointer-events-none absolute -top-[10px] -bottom-[10px] left-0 w-1/2 animate-tick-down"
+          style={{
+            backgroundImage: `repeating-linear-gradient(
+              to bottom,
+              var(--tick-color) 0px,
+              var(--tick-color) 1px,
+              transparent 1px,
+              transparent 10px
+            )`,
+          }}
+        />
+        {/* Right tick lines - scroll up */}
+        <div
+          className="pointer-events-none absolute -top-[10px] -bottom-[10px] left-1/2 w-1/2 animate-tick-up"
+          style={{
+            backgroundImage: `repeating-linear-gradient(
+              to bottom,
+              var(--tick-color) 0px,
+              var(--tick-color) 1px,
+              transparent 1px,
+              transparent 10px
+            )`,
+          }}
+        />
 
-        {/* Left spacing */}
-        <div className="hidden w-6 flex-shrink-0 border-zinc-200 border-x md:block dark:border-zinc-800" />
+        {/* Content wrapper - centers content */}
+        <div className="relative flex flex-1 justify-center">
+          <div className="flex w-full max-w-3xl flex-col border-border border-x bg-background">
+            {/* Hero content */}
+            <section className="flex flex-col items-start gap-6 px-6 py-24">
+              <div className="flex items-center gap-3">
+                <Logo className="text-foreground" size={28} />
+                <span className="text-foreground text-lg tracking-tight">
+                  OpenScroll
+                </span>
+              </div>
+              <h1 className="max-w-xl font-semibold text-3xl text-foreground tracking-tighter md:text-4xl">
+                Filter your{" "}
+                <span className="inline-flex items-baseline gap-1">
+                  <XIcon className="relative top-0.5 inline-block" />
+                </span>{" "}
+                timeline,
+                <br />
+                <span className="italic">focus on what matters</span>
+              </h1>
+              <p className="max-w-md text-muted-foreground leading-relaxed">
+                A Chrome extension that filters tweets by age and engagement.
+                Hide old posts and low engagement content.
+              </p>
+              <div className="flex gap-4">
+                <a
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-foreground px-5 font-medium text-background text-sm transition-colors hover:bg-foreground/80"
+                  href="https://chrome.google.com/webstore"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <ChromeIcon />
+                  Add to Chrome
+                </a>
+                <a
+                  className="flex h-11 items-center justify-center gap-2 rounded-full border border-border px-5 font-medium text-foreground text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                  href="https://github.com/charlietlamb/openscroll"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <GitHubIcon />
+                  View on GitHub
+                </a>
+              </div>
+            </section>
 
-        {/* Content */}
-        <div className="w-full max-w-3xl">
-          {/* Hero content */}
-          <section className="flex flex-col items-start gap-6 border-zinc-200 border-b px-6 py-24 dark:border-zinc-800">
-            <div className="flex items-center gap-3">
-              <Logo className="text-zinc-900 dark:text-zinc-50" size={32} />
-              <span className="font-semibold text-xl text-zinc-900 dark:text-zinc-50">
-                OpenScroll
-              </span>
-            </div>
-            <h1 className="max-w-xl font-semibold text-3xl text-zinc-900 tracking-tight md:text-4xl dark:text-zinc-50">
-              Filter your{" "}
-              <span className="inline-flex items-baseline gap-1">
-                <XIcon className="relative top-0.5 inline-block" />
-              </span>{" "}
-              timeline,
-              <br />
-              <span className="italic">focus on what matters</span>
-            </h1>
-            <p className="max-w-md text-zinc-600 leading-relaxed dark:text-zinc-400">
-              A Chrome extension that filters tweets by age and engagement. Hide
-              old posts and low engagement content.
-            </p>
-            <div className="flex gap-4">
+            {/* Features grid */}
+            <section className="grid border-border border-b md:grid-cols-3">
+              <Feature
+                description="Hide tweets older than your preferred threshold"
+                index="01"
+                title="Filter by age"
+              />
+              <Feature
+                border
+                description="Set minimum views, likes, comments, or reposts"
+                index="02"
+                title="Engagement filters"
+              />
+              <Feature
+                description="Built-in cooldown to prevent excessive scrolling"
+                index="03"
+                title="Rate limiting"
+              />
+            </section>
+
+            {/* Footer */}
+            <section className="mt-auto flex items-center justify-center gap-1.5 border-border border-t px-6 py-6 pb-10">
+              <span className="text-muted-foreground text-sm">Created by</span>
               <a
-                className="flex h-11 items-center justify-center gap-2 rounded-full bg-zinc-900 px-5 font-medium text-sm text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                href="https://chrome.google.com/webstore"
+                className="text-muted-foreground text-sm underline underline-offset-2 transition-colors hover:text-foreground"
+                href="https://x.com/charlietlamb"
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <ChromeIcon />
-                Add to Chrome
+                @charlietlamb
               </a>
-              <a
-                className="flex h-11 items-center justify-center gap-2 rounded-full border border-zinc-200 px-5 font-medium text-sm text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900"
-                href="https://github.com/charlielamb/openscroll"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <GitHubIcon />
-                View on GitHub
-              </a>
-            </div>
-          </section>
-
-          {/* Features grid */}
-          <section className="grid border-zinc-200 border-b md:grid-cols-3 dark:border-zinc-800">
-            <Feature
-              description="Hide tweets older than your preferred threshold"
-              title="Filter by age"
-            />
-            <Feature
-              className="border-zinc-200 border-x dark:border-zinc-800"
-              description="Set minimum views, likes, comments, or reposts"
-              title="Engagement filters"
-            />
-            <Feature
-              description="Built-in cooldown to prevent excessive scrolling"
-              title="Rate limiting"
-            />
-          </section>
-
-          {/* Bottom section */}
-          <section className="flex flex-wrap items-center justify-start gap-x-6 gap-y-2 px-6 py-10">
-            <p className="text-sm text-zinc-500">Open source</p>
-            <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <p className="text-sm text-zinc-500">Works on x.com</p>
-            <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <p className="text-sm text-zinc-500">No data collection</p>
-          </section>
+            </section>
+          </div>
         </div>
-
-        {/* Right spacing */}
-        <div className="hidden w-6 flex-shrink-0 border-zinc-200 border-x md:block dark:border-zinc-800" />
-
-        {/* Right gutter with ticks */}
-        <BorderLine position="right" />
       </main>
-    </div>
-  );
-}
-
-function BorderLine(_props: { position: "left" | "right" }) {
-  return (
-    <div className="relative hidden w-12 flex-shrink-0 [--tick-color:theme(colors.zinc.200)] md:block dark:[--tick-color:theme(colors.zinc.800)]">
-      {/* Tick marks filling the gutter */}
-      <div
-        className="absolute top-0 right-0 bottom-0 left-0"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            to bottom,
-            var(--tick-color) 0px,
-            var(--tick-color) 1px,
-            transparent 1px,
-            transparent 10px
-          )`,
-          backgroundSize: "100% 100%",
-          backgroundRepeat: "repeat-y",
-        }}
-      />
     </div>
   );
 }
@@ -117,20 +120,29 @@ function BorderLine(_props: { position: "left" | "right" }) {
 function Feature({
   title,
   description,
-  className = "",
+  index,
+  border = false,
 }: {
   title: string;
   description: string;
-  className?: string;
+  index: string;
+  border?: boolean;
 }) {
   return (
-    <div className={`flex flex-col gap-2 px-5 py-6 ${className}`}>
-      <h3 className="font-medium text-sm text-zinc-900 dark:text-zinc-50">
-        {title}
-      </h3>
-      <p className="text-sm text-zinc-600 leading-relaxed dark:text-zinc-400">
+    <div
+      className={cn(
+        "group relative flex flex-col gap-3 border-border border-t px-5 py-8",
+        border && "md:border-x"
+      )}
+    >
+      <span className="font-mono text-muted-foreground/60 text-xs">
+        {index}
+      </span>
+      <h3 className="font-medium text-foreground text-sm">{title}</h3>
+      <p className="text-muted-foreground text-sm leading-relaxed">
         {description}
       </p>
+      <div className="mt-1 h-px w-6 bg-border transition-all group-hover:w-12 group-hover:bg-foreground" />
     </div>
   );
 }

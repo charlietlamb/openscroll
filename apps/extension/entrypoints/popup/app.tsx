@@ -51,6 +51,8 @@ function App() {
   const [stats, setStats] = useState<Stats>({ hiddenCount: 0, shownCount: 0 });
   const [loading, setLoading] = useState(true);
   const [isOnX, setIsOnX] = useState(false);
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     Promise.all([filterSettings.getValue(), cooldownSettings.getValue()]).then(
@@ -61,25 +63,42 @@ function App() {
       }
     );
 
-    // Check if current tab is on x.com
-    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-      const tab = tabs[0];
-      const onX = isXDomain(tab?.url);
-      setIsOnX(onX);
+    // Check if current tab is on x.com and content script is reachable
+    browser.tabs
+      .query({ active: true, currentWindow: true })
+      .then(async (tabs) => {
+        const tab = tabs[0];
+        const onX = isXDomain(tab?.url);
+        setIsOnX(onX);
 
-      if (onX && tab?.id) {
-        browser.tabs
-          .sendMessage(tab.id, { type: "GET_STATS" })
-          .then((response: Stats | undefined) => {
-            if (response) {
-              setStats(response);
-            }
-          })
-          .catch(() => {
-            // Content script not loaded on this page
-          });
-      }
-    });
+        if (!(onX && tab?.id)) {
+          return;
+        }
+
+        // Check if we have host permissions (optional_host_permissions are
+        // not auto-granted on all browsers, e.g. Arc defaults them to OFF)
+        const hasPermission = await browser.permissions.contains({
+          origins: ["*://x.com/*", "*://twitter.com/*"],
+        });
+
+        if (!hasPermission) {
+          setNeedsPermission(true);
+          return;
+        }
+
+        // We have permissions — try to reach the content script
+        try {
+          const response: Stats | undefined = await browser.tabs.sendMessage(
+            tab.id,
+            { type: "GET_STATS" }
+          );
+          if (response?.hiddenCount !== undefined) {
+            setStats(response);
+          }
+        } catch {
+          // Content script not loaded yet — background will handle injection
+        }
+      });
 
     // Listen for stats updates from content script
     const listener = (message: { type: string } & Stats) => {
@@ -130,6 +149,53 @@ function App() {
         <p className="text-muted-foreground text-sm">
           Navigate to x.com to use OpenScroll.
         </p>
+      </div>
+    );
+  }
+
+  if (needsPermission) {
+    const handleGrantAccess = async () => {
+      setRequesting(true);
+      try {
+        const granted = await browser.permissions.request({
+          origins: ["*://x.com/*", "*://twitter.com/*"],
+        });
+        if (granted) {
+          // Permission granted — the background listener will handle
+          // registering and injecting the content script. Reload the page
+          // so the content script can start filtering.
+          const [tab] = await browser.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          if (tab?.id) {
+            await browser.tabs.reload(tab.id);
+          }
+          setNeedsPermission(false);
+        }
+      } catch {
+        // User denied or error occurred
+      }
+      setRequesting(false);
+    };
+
+    return (
+      <div className="min-h-[100px] w-72 space-y-4 p-3 font-sans">
+        <div className="flex items-center gap-2">
+          <Logo className="text-foreground" size={20} />
+          <h1 className="text-base text-foreground">OpenScroll</h1>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          OpenScroll needs access to x.com to filter your timeline.
+        </p>
+        <button
+          className="w-full rounded-md bg-foreground px-3 py-2 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+          disabled={requesting}
+          onClick={handleGrantAccess}
+          type="button"
+        >
+          {requesting ? "Requesting..." : "Grant access"}
+        </button>
       </div>
     );
   }
