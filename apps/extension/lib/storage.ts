@@ -22,7 +22,8 @@ const defaultStats: StatsData = {
   lastUpdated: Date.now(),
 };
 
-export const statsStorage = storage.defineItem<StatsData>("session:stats", {
+// Arc blocks extension session storage from the content-script context.
+export const statsStorage = storage.defineItem<StatsData>("local:stats", {
   fallback: defaultStats,
 });
 

@@ -31,15 +31,21 @@ interface Stats {
   shownCount: number;
 }
 
-function isXDomain(url: string | undefined): boolean {
+function getXOrigin(url: string | undefined): string | null {
   if (!url) {
-    return false;
+    return null;
   }
   try {
     const hostname = new URL(url).hostname;
-    return hostname === "x.com" || hostname === "twitter.com";
+    if (hostname === "x.com") {
+      return "*://x.com/*";
+    }
+    if (hostname === "twitter.com") {
+      return "*://twitter.com/*";
+    }
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -53,6 +59,8 @@ function App() {
   const [isOnX, setIsOnX] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [activeOrigin, setActiveOrigin] = useState<string | null>(null);
+  const [scriptUnavailable, setScriptUnavailable] = useState(false);
 
   useEffect(() => {
     Promise.all([filterSettings.getValue(), cooldownSettings.getValue()]).then(
@@ -68,17 +76,18 @@ function App() {
       .query({ active: true, currentWindow: true })
       .then(async (tabs) => {
         const tab = tabs[0];
-        const onX = isXDomain(tab?.url);
-        setIsOnX(onX);
+        const origin = getXOrigin(tab?.url);
+        setActiveOrigin(origin);
+        setIsOnX(origin !== null);
 
-        if (!(onX && tab?.id)) {
+        if (!(origin && tab?.id)) {
           return;
         }
 
         // Check if we have host permissions (optional_host_permissions are
         // not auto-granted on all browsers, e.g. Arc defaults them to OFF)
         const hasPermission = await browser.permissions.contains({
-          origins: ["*://x.com/*", "*://twitter.com/*"],
+          origins: [origin],
         });
 
         if (!hasPermission) {
@@ -86,8 +95,14 @@ function App() {
           return;
         }
 
-        // We have permissions — try to reach the content script
+        setNeedsPermission(false);
+
+        // We have permissions — ensure the content script is attached.
         try {
+          await browser.runtime.sendMessage({
+            type: "ENSURE_CONTENT_SCRIPT",
+            tabId: tab.id,
+          });
           const response: Stats | undefined = await browser.tabs.sendMessage(
             tab.id,
             { type: "GET_STATS" }
@@ -95,8 +110,9 @@ function App() {
           if (response?.hiddenCount !== undefined) {
             setStats(response);
           }
+          setScriptUnavailable(false);
         } catch {
-          // Content script not loaded yet — background will handle injection
+          setScriptUnavailable(true);
         }
       });
 
@@ -158,17 +174,18 @@ function App() {
       setRequesting(true);
       try {
         const granted = await browser.permissions.request({
-          origins: ["*://x.com/*", "*://twitter.com/*"],
+          origins: activeOrigin ? [activeOrigin] : ["*://x.com/*"],
         });
         if (granted) {
-          // Permission granted — the background listener will handle
-          // registering and injecting the content script. Reload the page
-          // so the content script can start filtering.
           const [tab] = await browser.tabs.query({
             active: true,
             currentWindow: true,
           });
           if (tab?.id) {
+            await browser.runtime.sendMessage({
+              type: "ENSURE_CONTENT_SCRIPT",
+              tabId: tab.id,
+            });
             await browser.tabs.reload(tab.id);
           }
           setNeedsPermission(false);
@@ -273,6 +290,12 @@ function App() {
       <p className="text-muted-foreground text-xs">
         Filtered tweets are hidden from your timeline.
       </p>
+      {scriptUnavailable && (
+        <p className="text-muted-foreground text-xs">
+          OpenScroll has access but could not attach to this Arc tab. Reload
+          x.com once. If it still fails, toggle the extension off and on in Arc.
+        </p>
+      )}
 
       <Separator className="my-4" />
 

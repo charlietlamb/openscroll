@@ -5,32 +5,52 @@ export default defineBackground(() => {
   // browser.action (MV3) vs browser.browserAction (MV2)
   const action = browser.action ?? browser.browserAction;
 
-  browser.runtime.onMessage.addListener((message) => {
-    if (message.type === "UPDATE_STATS") {
-      const count = message.hiddenCount as number;
-      action.setBadgeText({ text: count > 0 ? String(count) : "" });
-      action.setBadgeBackgroundColor({ color: "#1d9bf0" }); // X blue
+  function ensureContentScript(tabId?: number) {
+    onPermissionsAvailable(tabId).catch(() => undefined);
+  }
+
+  async function getGrantedOrigins(): Promise<string[]> {
+    const granted = await Promise.all(
+      X_ORIGINS.map(async (origin) =>
+        (await browser.permissions.contains({ origins: [origin] }))
+          ? origin
+          : null
+      )
+    );
+    return granted.filter((origin) => origin !== null);
+  }
+
+  async function onPermissionsAvailable(tabId?: number) {
+    const origins = await getGrantedOrigins();
+    if (!origins.length) {
+      return false;
     }
-  });
 
-  // When host permissions are granted (either at install on Chrome, or via
-  // runtime permissions.request() on Arc), register the content script
-  // dynamically and inject into any already-open X tabs.
-  async function onPermissionsAvailable() {
+    const register = {
+      id: CONTENT_SCRIPT_ID,
+      matches: origins,
+      js: ["/content-scripts/content.js"],
+      runAt: "document_end" as const,
+      persistAcrossSessions: true,
+    };
+
     try {
-      await browser.scripting
-        .unregisterContentScripts({ ids: [CONTENT_SCRIPT_ID] })
-        .catch(() => undefined);
+      const existing = await browser.scripting.getRegisteredContentScripts({
+        ids: [CONTENT_SCRIPT_ID],
+      });
+      const current = existing[0];
+      const currentMatches = current?.matches ?? [];
 
-      await browser.scripting.registerContentScripts([
-        {
-          id: CONTENT_SCRIPT_ID,
-          matches: X_ORIGINS,
-          js: ["/content-scripts/content.js"],
-          runAt: "document_end",
-          persistAcrossSessions: true,
-        },
-      ]);
+      if (
+        !current ||
+        currentMatches.length !== register.matches.length ||
+        currentMatches.some((match, index) => match !== register.matches[index])
+      ) {
+        await browser.scripting
+          .unregisterContentScripts({ ids: [CONTENT_SCRIPT_ID] })
+          .catch(() => undefined);
+        await browser.scripting.registerContentScripts([register]);
+      }
     } catch (err) {
       console.warn(
         "OpenScroll: failed to register dynamic content script",
@@ -38,9 +58,19 @@ export default defineBackground(() => {
       );
     }
 
+    if (tabId != null) {
+      browser.scripting
+        .executeScript({
+          target: { tabId },
+          files: ["/content-scripts/content.js"],
+        })
+        .catch(() => undefined);
+      return true;
+    }
+
     // Inject into any already-open X tabs
     try {
-      const tabs = await browser.tabs.query({ url: X_ORIGINS });
+      const tabs = await browser.tabs.query({ url: origins });
       for (const tab of tabs) {
         if (tab.id == null) {
           continue;
@@ -55,17 +85,25 @@ export default defineBackground(() => {
     } catch {
       // tabs.query may fail if permissions aren't granted yet
     }
+
+    return true;
   }
+
+  browser.runtime.onMessage.addListener((message) => {
+    if (message.type === "UPDATE_STATS") {
+      const count = message.hiddenCount as number;
+      action.setBadgeText({ text: count > 0 ? String(count) : "" });
+      action.setBadgeBackgroundColor({ color: "#1d9bf0" }); // X blue
+    }
+    if (message.type === "ENSURE_CONTENT_SCRIPT") {
+      return onPermissionsAvailable(message.tabId);
+    }
+  });
 
   // On install/update, check if we already have host permissions (e.g. Chrome
   // auto-grants them). If so, register content scripts immediately.
-  browser.runtime.onInstalled.addListener(async () => {
-    const granted = await browser.permissions.contains({
-      origins: X_ORIGINS,
-    });
-    if (granted) {
-      onPermissionsAvailable();
-    }
+  browser.runtime.onInstalled.addListener(() => {
+    ensureContentScript();
   });
 
   // Listen for host permissions being granted at runtime (from the popup's
@@ -76,7 +114,13 @@ export default defineBackground(() => {
       (o) => o.includes("x.com") || o.includes("twitter.com")
     );
     if (hasOrigin) {
-      onPermissionsAvailable();
+      ensureContentScript();
     }
   });
+
+  browser.runtime.onStartup?.addListener(() => {
+    ensureContentScript();
+  });
+
+  ensureContentScript();
 });
